@@ -107,6 +107,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:smartfarming_bapeltan/common/app_colors.dart';
 import 'package:smartfarming_bapeltan/screens/home.dart';
 import 'package:smartfarming_bapeltan/screens/login_screen.dart';
+import 'package:smartfarming_bapeltan/screens/main_navigation.dart';
 
 class SplashScreen extends StatefulWidget {
   @override
@@ -307,7 +308,7 @@ class _SplashScreenState extends State<SplashScreen>
         const Duration(seconds: 3),
         () => Navigator.of(context).pushReplacement(
           MaterialPageRoute(
-            builder: (BuildContext context) => const Home(),
+            builder: (BuildContext context) => const MainNavigation(),
           ),
         ),
       );

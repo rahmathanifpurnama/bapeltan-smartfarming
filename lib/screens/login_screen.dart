@@ -6,7 +6,7 @@ import 'package:fluttertoast/fluttertoast.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:smartfarming_bapeltan/api/login.dart';
 import 'package:smartfarming_bapeltan/common/app_colors.dart';
-import 'package:smartfarming_bapeltan/screens/home.dart';
+import 'package:smartfarming_bapeltan/screens/main_navigation.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
@@ -265,7 +265,7 @@ class _LoginScreenState extends State<LoginScreen> {
     await pref.setString('namaAlat', 'Modul 1');
     await pref.setBool('blocked', false);
     Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (context) {
-      return Home();
+      return const MainNavigation();
     }), (route) => false);
   }
 
@@ -296,7 +296,7 @@ class _LoginScreenState extends State<LoginScreen> {
     await pref.setBool('blocked', false);
 
     Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (context) {
-      return Home();
+      return const MainNavigation();
     }), (route) => false);
   }
 

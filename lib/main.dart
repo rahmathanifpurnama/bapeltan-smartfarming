@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:smartfarming_bapeltan/screens/home.dart';
+import 'package:smartfarming_bapeltan/screens/main_navigation.dart';
 import 'package:smartfarming_bapeltan/screens/splash_screen.dart';
 
 /// main program untuk memulai aplikasi

@@ -5,8 +5,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:smartfarming_bapeltan/api/realtime_data_drawer.dart';
 import 'package:smartfarming_bapeltan/api/status_alat.dart';
 import 'package:smartfarming_bapeltan/common/app_colors.dart';
-import 'package:smartfarming_bapeltan/screens/home.dart';
 import 'package:smartfarming_bapeltan/screens/login_screen.dart';
+import 'package:smartfarming_bapeltan/screens/main_navigation.dart';
 
 class NavigationDrawer extends StatefulWidget {
   const NavigationDrawer({Key? key}) : super(key: key);
@@ -230,7 +230,7 @@ class _NavigationDrawerState extends State<NavigationDrawer> {
         await pref.setString('namaAlat', text);
         Navigator.pushAndRemoveUntil(context,
             MaterialPageRoute(builder: (context) {
-          return const Home();
+          return const MainNavigation();
         }), (route) => false);
       },
     );

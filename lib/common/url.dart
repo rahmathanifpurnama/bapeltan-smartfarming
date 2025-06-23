@@ -21,6 +21,14 @@ class UrlData {
   // File Storage
   final String url_images = 'http://34.101.210.210:8080/api/files/';
 
+  // Scheduling Collections Endpoints
+  final String url_schedules =
+      'http://34.101.210.210:8080/api/collections/schedules';
+  final String url_automation_rules =
+      'http://34.101.210.210:8080/api/collections/automation_rules';
+  final String url_schedule_executions =
+      'http://34.101.210.210:8080/api/collections/schedule_executions';
+
   // Legacy endpoints mapping (untuk backward compatibility)
   final String url_summary =
       'http://34.101.210.210:8080/api/collections/devices/records'; // data utama

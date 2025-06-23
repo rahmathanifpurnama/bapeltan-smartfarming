@@ -2,6 +2,7 @@
 
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
@@ -24,13 +25,15 @@ class Home extends StatefulWidget {
   State<Home> createState() => _HomeState();
 }
 
-class _HomeState extends State<Home> {
+class _HomeState extends State<Home> with WidgetsBindingObserver {
   late StreamController _dataRealtimeController;
   late StreamController _dataKontrol;
   final GlobalKey<ScaffoldState> scaffoldKey = new GlobalKey<ScaffoldState>();
   final _formKey = GlobalKey<FormState>();
   var tanggal = '';
   var jam = '';
+  Timer? _pollingTimer;
+  bool _isAppInForeground = true;
 
   Future<void> showDialogPesan(BuildContext context, String pesan) async {
     showDialog(
@@ -180,15 +183,17 @@ class _HomeState extends State<Home> {
 
   // int jumlahData = 3;
 
-  Future fetchRealtime() async {
+  Future fetchRealtime({int retryCount = 0}) async {
+    const int maxRetries = 3;
+    const Duration retryDelay = Duration(seconds: 2);
+
     try {
       isDataLoading = true;
 
       // Get auth token from SharedPreferences
       SharedPreferences pref = await SharedPreferences.getInstance();
       String? authToken = pref.getString('authToken');
-      String? deviceId =
-          pref.getString('deviceId'); // We'll need to save this during login
+      String? deviceId = pref.getString('deviceId');
 
       // Use PocketBase API to get latest sensor data
       String apiURL = UrlData().url_sensor_data +
@@ -203,7 +208,13 @@ class _HomeState extends State<Home> {
         headers['Authorization'] = 'Bearer $authToken';
       }
 
-      final response = await http.get(Uri.parse(apiURL), headers: headers);
+      final response =
+          await http.get(Uri.parse(apiURL), headers: headers).timeout(
+        Duration(seconds: 10), // Add timeout
+        onTimeout: () {
+          throw TimeoutException('Request timeout', Duration(seconds: 10));
+        },
+      );
 
       if (response.statusCode == 200) {
         var jsonData = json.decode(response.body);
@@ -222,20 +233,51 @@ class _HomeState extends State<Home> {
 
         var legacyFormat = {
           'realtimeData': convertedItems,
-          'totalItems': jsonData['totalItems'] ?? 0
+          'totalItems': jsonData['totalItems'] ?? 0,
+          'date': _formatDate(DateTime.now()),
+          'time': _formatTime(DateTime.now())
         };
 
         return legacyFormat;
+      } else if (response.statusCode == 401) {
+        // Unauthorized - token might be expired
+        print('Authentication error: ${response.statusCode}');
+        return {'realtimeData': [], 'totalItems': 0, 'error': 'auth_error'};
       } else {
-        print('Error: ${response.statusCode}');
-        return {'realtimeData': [], 'totalItems': 0};
+        throw HttpException(
+            'HTTP ${response.statusCode}: ${response.reasonPhrase}');
       }
     } catch (e) {
-      print('Error get data realtime : $e');
-      return {'realtimeData': [], 'totalItems': 0};
+      print('Error get data realtime (attempt ${retryCount + 1}): $e');
+
+      // Retry logic
+      if (retryCount < maxRetries &&
+          (e is SocketException ||
+              e is TimeoutException ||
+              e is HttpException)) {
+        print('Retrying in ${retryDelay.inSeconds} seconds...');
+        await Future.delayed(retryDelay);
+        return fetchRealtime(retryCount: retryCount + 1);
+      }
+
+      return {
+        'realtimeData': [],
+        'totalItems': 0,
+        'error': e.toString(),
+        'date': _formatDate(DateTime.now()),
+        'time': _formatTime(DateTime.now())
+      };
     } finally {
       isDataLoading = false;
     }
+  }
+
+  String _formatDate(DateTime dateTime) {
+    return '${dateTime.day.toString().padLeft(2, '0')}/${dateTime.month.toString().padLeft(2, '0')}/${dateTime.year}';
+  }
+
+  String _formatTime(DateTime dateTime) {
+    return '${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}';
   }
 
   loadRealtime() async {
@@ -245,7 +287,10 @@ class _HomeState extends State<Home> {
     });
   }
 
-  Future fetchKontrol() async {
+  Future fetchKontrol({int retryCount = 0}) async {
+    const int maxRetries = 3;
+    const Duration retryDelay = Duration(seconds: 2);
+
     try {
       isDataLoading = true;
 
@@ -267,7 +312,13 @@ class _HomeState extends State<Home> {
         headers['Authorization'] = 'Bearer $authToken';
       }
 
-      final response = await http.get(Uri.parse(apiURL), headers: headers);
+      final response =
+          await http.get(Uri.parse(apiURL), headers: headers).timeout(
+        Duration(seconds: 10),
+        onTimeout: () {
+          throw TimeoutException('Request timeout', Duration(seconds: 10));
+        },
+      );
 
       if (response.statusCode == 200) {
         var jsonData = json.decode(response.body);
@@ -291,13 +342,27 @@ class _HomeState extends State<Home> {
         };
 
         return legacyFormat;
+      } else if (response.statusCode == 401) {
+        print('Authentication error: ${response.statusCode}');
+        return {'kontrol': [], 'totalItems': 0, 'error': 'auth_error'};
       } else {
-        print('Error: ${response.statusCode}');
-        return {'kontrol': [], 'totalItems': 0};
+        throw HttpException(
+            'HTTP ${response.statusCode}: ${response.reasonPhrase}');
       }
     } catch (e) {
-      print('Error get data kontrol : $e');
-      return {'kontrol': [], 'totalItems': 0};
+      print('Error get data kontrol (attempt ${retryCount + 1}): $e');
+
+      // Retry logic
+      if (retryCount < maxRetries &&
+          (e is SocketException ||
+              e is TimeoutException ||
+              e is HttpException)) {
+        print('Retrying in ${retryDelay.inSeconds} seconds...');
+        await Future.delayed(retryDelay);
+        return fetchKontrol(retryCount: retryCount + 1);
+      }
+
+      return {'kontrol': [], 'totalItems': 0, 'error': e.toString()};
     } finally {
       isDataLoading = false;
     }
@@ -311,30 +376,75 @@ class _HomeState extends State<Home> {
   }
 
   loadDateTime() {
-    fetchRealtime().then(
-      (value) {
-        setState(() {
-          tanggal = value['date'];
-          jam = value['time'];
-        });
-      },
-    );
+    // DateTime is now handled within fetchRealtime to avoid duplicate API calls
+    setState(() {
+      tanggal = _formatDate(DateTime.now());
+      jam = _formatTime(DateTime.now());
+    });
   }
 
   @override
   void initState() {
-    // TODO: implement initState
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _checkBlockUser();
     _dataRealtimeController = new StreamController();
     _dataKontrol = new StreamController();
     getIdAlatFromSharedPref();
-    Timer.periodic(Duration(milliseconds: 300), (_) {
+    _startPolling();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _pollingTimer?.cancel();
+    _dataRealtimeController.close();
+    _dataKontrol.close();
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    switch (state) {
+      case AppLifecycleState.resumed:
+        _isAppInForeground = true;
+        _startPolling();
+        break;
+      case AppLifecycleState.paused:
+      case AppLifecycleState.inactive:
+      case AppLifecycleState.detached:
+        _isAppInForeground = false;
+        _stopPolling();
+        break;
+      case AppLifecycleState.hidden:
+        _isAppInForeground = false;
+        _stopPolling();
+        break;
+    }
+  }
+
+  void _startPolling() {
+    _stopPolling(); // Stop any existing timer
+    if (_isAppInForeground) {
+      // Changed from 300ms to 5 seconds for better performance
+      _pollingTimer = Timer.periodic(Duration(seconds: 5), (_) {
+        if (_isAppInForeground) {
+          loadRealtime();
+          loadKontrol();
+          loadDateTime();
+        }
+      });
+      // Load data immediately when starting
       loadRealtime();
       loadKontrol();
       loadDateTime();
-    });
-    // loadRealtime();
-    super.initState();
+    }
+  }
+
+  void _stopPolling() {
+    _pollingTimer?.cancel();
+    _pollingTimer = null;
   }
 
   @override
